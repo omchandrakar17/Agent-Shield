@@ -1,0 +1,69 @@
+# Core app configuration
+AGENTSHIELD_ENV=development
+AGENTSHIELD_DATABASE_URL=sqlite:///./agentshield.db
+AGENTSHIELD_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Authentication: local | firebase | disabled (tests only)
+AGENTSHIELD_AUTH_MODE=local
+AGENTSHIELD_JWT_SECRET=change-this-to-a-long-random-secret-in-production
+AGENTSHIELD_JWT_TTL_HOURS=12
+
+# Development seed users (persistent DB accounts, not hardcoded auth bypass)
+AGENTSHIELD_SEED_USERS=true
+AGENTSHIELD_SEED_OPERATOR_EMAIL=operator@agentshield.example
+AGENTSHIELD_SEED_OPERATOR_PASSWORD=agentshield2026
+AGENTSHIELD_SEED_ADMIN_EMAIL=admin@agentshield.example
+AGENTSHIELD_SEED_ADMIN_PASSWORD=admin2026
+
+# Google Cloud (staging/production)
+GOOGLE_CLOUD_PROJECT=
+GOOGLE_CLOUD_REGION=us-central1
+
+# Firestore — operational document mirror (audit, security events)
+FIRESTORE_PROJECT_ID=
+FIRESTORE_DATABASE_ID=(default)
+AGENTSHIELD_USE_FIRESTORE=false
+
+# Pub/Sub — event streaming to BigQuery pipelines
+AGENTSHIELD_USE_PUBSUB=false
+AGENTSHIELD_PUBSUB_TOPIC=agentshield-events
+AGENTSHIELD_PUBSUB_AUDIT_TOPIC=agentshield-audit-events
+
+# BigQuery — analytics warehouse
+AGENTSHIELD_USE_BIGQUERY=false
+AGENTSHIELD_BIGQUERY_DATASET=agentshield
+AGENTSHIELD_BIGQUERY_AUDIT_TABLE=audit_events
+
+# Secret Manager — load secrets at startup (production)
+AGENTSHIELD_USE_SECRET_MANAGER=false
+
+# Cloud SQL PostgreSQL (production primary database)
+CLOUD_SQL_CONNECTION_NAME=
+DB_USER=agentshield
+DB_PASS=
+DB_NAME=agentshield
+
+AGENTSHIELD_MODEL_ARMOR_ENABLED=false
+
+# Agent planner: keyword (default) | gemini | vertex
+AGENTSHIELD_AGENT_PLANNER=keyword
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.0-flash
+VERTEX_GEMINI_MODEL=gemini-2.0-flash-001
+
+# Runtime gateway authentication (required in production)
+AGENTSHIELD_AGENT_API_KEY=
+
+# Internal key for direct /business/* access (gateway calls execute_business_tool in-process)
+AGENTSHIELD_INTERNAL_SERVICE_KEY=
+
+# Optional runtime overrides
+AGENTSHIELD_DEFAULT_APPROVAL_TTL_MINUTES=15
+
+# Frontend (Vite)
+VITE_API_URL=/api/v1
+
+# Firebase Auth (set AGENTSHIELD_AUTH_MODE=firebase when configured)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=

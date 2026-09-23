@@ -1,0 +1,100 @@
+# Cloud Build — test, build, deploy backend to Cloud Run, smoke test
+# Usage: gcloud builds submit --config=infra/cloudbuild.yaml .
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE: agentshield-api
+  _REPOSITORY: agentshield
+  _CLOUD_SQL_INSTANCE: ""
+  _AUTH_MODE: local
+  _MIN_INSTANCES: "1"
+  _MAX_INSTANCES: "10"
+
+steps:
+  - id: test-backend
+    name: python:3.13-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        pip install -e "./backend[dev]" -q
+        AGENTSHIELD_AUTH_MODE=disabled python -m pytest backend/tests -q
+
+  - id: test-frontend
+    name: node:20-alpine
+    dir: frontend
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        npm ci
+        npm test
+        npm run build
+
+  - id: build-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${SHORT_SHA}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:latest
+      - -f
+      - backend/Dockerfile
+      - backend
+
+  - id: push-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api
+
+  - id: deploy-api
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${SHORT_SHA}"
+        DEPLOY_ARGS=(
+          run deploy ${_SERVICE}
+          --image="$IMAGE"
+          --region=${_REGION}
+          --platform=managed
+          --allow-unauthenticated
+          --port=8080
+          --memory=512Mi
+          --cpu=1
+          --min-instances=${_MIN_INSTANCES}
+          --max-instances=${_MAX_INSTANCES}
+          --set-secrets=AGENTSHIELD_JWT_SECRET=agentshield-jwt-secret:latest,AGENTSHIELD_AGENT_API_KEY=agentshield-agent-api-key:latest,AGENTSHIELD_INTERNAL_SERVICE_KEY=agentshield-internal-service-key:latest,AGENTSHIELD_DATABASE_URL=agentshield-database-url:latest,AGENTSHIELD_CORS_ORIGINS=agentshield-cors-origins:latest
+          --set-env-vars=AGENTSHIELD_ENV=production,AGENTSHIELD_AUTH_MODE=${_AUTH_MODE},AGENTSHIELD_SEED_USERS=false,AGENTSHIELD_USE_SECRET_MANAGER=true,AGENTSHIELD_USE_PUBSUB=true,AGENTSHIELD_USE_FIRESTORE=true,AGENTSHIELD_USE_BIGQUERY=true,AGENTSHIELD_PUBSUB_TOPIC=agentshield-events,AGENTSHIELD_PUBSUB_AUDIT_TOPIC=agentshield-audit-events,AGENTSHIELD_BIGQUERY_DATASET=agentshield,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},AGENTSHIELD_RUN_MIGRATIONS=true
+        )
+        if [ -n "${_CLOUD_SQL_INSTANCE}" ]; then
+          DEPLOY_ARGS+=(--add-cloudsql-instances=${_CLOUD_SQL_INSTANCE})
+          DEPLOY_ARGS+=(--set-env-vars=CLOUD_SQL_CONNECTION_NAME=${_CLOUD_SQL_INSTANCE})
+        fi
+        gcloud "${DEPLOY_ARGS[@]}"
+
+  - id: smoke-test
+    name: python:3.13-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        pip install -q google-cloud-secret-manager
+        URL=$(gcloud run services describe ${_SERVICE} --region=${_REGION} --format='value(status.url)')
+        API_KEY=$(gcloud secrets versions access latest --secret=agentshield-agent-api-key)
+        python scripts/production_smoke_test.py --base-url "$URL" --runtime-api-key "$API_KEY"
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

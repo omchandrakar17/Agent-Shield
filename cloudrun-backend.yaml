@@ -1,0 +1,61 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: agentshield-api
+  labels:
+    cloud.googleapis.com/location: us-central1
+    app.kubernetes.io/name: agentshield
+    app.kubernetes.io/part-of: agentshield-control-plane
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/description: "AgentShield Runtime Control Plane API"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/execution-environment: gen2
+        # run.googleapis.com/cloudsql-instances: "PROJECT_ID:REGION:agentshield-db"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - image: us-central1-docker.pkg.dev/PROJECT_ID/agentshield/api:latest
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: AGENTSHIELD_ENV
+              value: "production"
+            - name: AGENTSHIELD_AUTH_MODE
+              value: "local"
+            - name: AGENTSHIELD_SEED_USERS
+              value: "false"
+            - name: AGENTSHIELD_USE_SECRET_MANAGER
+              value: "true"
+            - name: AGENTSHIELD_USE_PUBSUB
+              value: "true"
+            - name: AGENTSHIELD_USE_FIRESTORE
+              value: "true"
+            - name: AGENTSHIELD_USE_BIGQUERY
+              value: "true"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "PROJECT_ID"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3

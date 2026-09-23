@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: agentshield-backend
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: uvicorn[standard]<1,>=0.30
+Requires-Dist: sqlalchemy<3,>=2.0
+Requires-Dist: alembic<2,>=1.13
+Requires-Dist: pydantic-settings<3,>=2.6
+Requires-Dist: jsonschema<5,>=4.23
+Requires-Dist: pyjwt<3,>=2.9
+Requires-Dist: email-validator<3,>=2.2
+Provides-Extra: dev
+Requires-Dist: httpx<1,>=0.27; extra == "dev"
+Requires-Dist: pytest<9,>=8; extra == "dev"
+Requires-Dist: ruff<1,>=0.8; extra == "dev"
+Provides-Extra: firebase
+Requires-Dist: firebase-admin<7,>=6.5; extra == "firebase"
+Provides-Extra: gcp
+Requires-Dist: google-cloud-firestore<3,>=2.19; extra == "gcp"
+Requires-Dist: google-cloud-pubsub<3,>=2.23; extra == "gcp"
+Requires-Dist: google-cloud-secret-manager<3,>=2.21; extra == "gcp"
+Requires-Dist: google-cloud-bigquery<4,>=3.27; extra == "gcp"
+Requires-Dist: google-cloud-logging<4,>=3.11; extra == "gcp"
+Requires-Dist: google-genai<2,>=1.0; extra == "gcp"
+Requires-Dist: pg8000<2,>=1.31; extra == "gcp"

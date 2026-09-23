@@ -1,0 +1,11 @@
+# Deprecated — use infra/cloudbuild.yaml
+# gcloud builds submit --config=infra/cloudbuild.yaml .
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        echo "Use: gcloud builds submit --config=infra/cloudbuild.yaml ."
+        exit 1
