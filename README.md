@@ -42,7 +42,7 @@ gfg/
 ├── docker-compose.yml           # Container orchestration with persistent volume
 ├── cloudrun-backend.yaml        # Google Cloud Run service specification
 ├── firebase.json                # Firebase Hosting configuration for frontend console
-├── cloudbuild.yaml              # Google Cloud Build CI/CD deployment pipeline
+├── cloudbuild.yaml              # Deprecated — use infra/cloudbuild.yaml
 ├── implementation_plan.md       # Technical design specification
 └── walkthrough.md               # Verification results & demo walkthrough
 ```
@@ -102,16 +102,16 @@ docker compose down
 AgentShield is ready for deployment on Google Cloud Platform:
 
 #### Automated CI/CD (Cloud Build)
-Submit build pipeline using `cloudbuild.yaml`:
+Submit the build pipeline using `infra/cloudbuild.yaml` (the root `cloudbuild.yaml` is deprecated):
 ```powershell
-gcloud builds submit --config=cloudbuild.yaml .
+gcloud builds submit --config=infra/cloudbuild.yaml .
 ```
 
 #### Manual Cloud Run Deployment
 ```powershell
 # 1. Deploy Backend to Cloud Run
-gcloud run deploy agentshield-backend \
-  --image=us-central1-docker.pkg.dev/$PROJECT_ID/agentshield/backend:latest \
+gcloud run deploy agentshield-api \
+  --image=us-central1-docker.pkg.dev/$PROJECT_ID/agentshield/api:latest \
   --region=us-central1 \
   --platform=managed \
   --allow-unauthenticated

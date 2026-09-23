@@ -6,12 +6,24 @@ __pycache__/
 .ruff_cache/
 
 backend/agentshield.db
+backend/*.db-wal
+backend/*.db-shm
 
 frontend/node_modules/
 frontend/dist/
 
 .env
-.env.production
+.env.*
+!.env.example
+!.env.production.example
+!.env.staging.example
+
+# Credentials and keys (do not ignore package.json / tsconfig.json)
+*service-account*.json
+*credentials*.json
+gcp-key.json
+*.pem
+*.key
 
 e2e/node_modules/
 e2e/test-results/

@@ -20,6 +20,7 @@ fi
 
 echo "==> Deploying backend"
 PROJECT_ID="$PROJECT_ID" REGION="$REGION" SERVICE="$SERVICE" \
+  AGENTSHIELD_ENV="${AGENTSHIELD_ENV:-production}" \
   CLOUD_SQL_INSTANCE="${CLOUD_SQL_INSTANCE:-}" \
   "$ROOT/infra/scripts/deploy-backend.sh"
 

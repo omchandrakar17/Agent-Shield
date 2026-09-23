@@ -137,22 +137,22 @@ gcloud pubsub subscriptions create agentshield-bq-sink \
 ### Option A: Automated CI/CD (recommended)
 
 ```bash
-# Trigger Cloud Build pipeline (cloudbuild.yaml)
-gcloud builds submit --config=cloudbuild.yaml \
-  --substitutions=_REGION=$REGION,_REPO=$REPO .
+# Trigger Cloud Build pipeline (infra/cloudbuild.yaml — root cloudbuild.yaml is deprecated)
+gcloud builds submit --config=infra/cloudbuild.yaml \
+  --substitutions=_REGION=$REGION,_ENV=staging,_CLOUD_SQL_INSTANCE=$CLOUD_SQL_CN .
 ```
 
 ### Option B: Manual Docker build and push
 
 ```bash
 # Build backend
-docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/backend:latest ./backend
+docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/api:latest -f backend/Dockerfile backend
 
 # Build frontend
 docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/frontend:latest ./frontend
 
 # Push both images
-docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/backend:latest
+docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/api:latest
 docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/frontend:latest
 ```
 
@@ -164,8 +164,8 @@ docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO/frontend:latest
 # Get Cloud SQL connection name
 CLOUD_SQL_CN=$(gcloud sql instances describe agentshield-db --format="value(connectionName)")
 
-gcloud run deploy agentshield-backend \
-  --image=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/backend:latest \
+gcloud run deploy agentshield-api \
+  --image=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/api:latest \
   --region=$REGION \
   --platform=managed \
   --port=8080 \
@@ -182,7 +182,7 @@ gcloud run deploy agentshield-backend \
   --allow-unauthenticated
 
 # Get the backend URL
-BACKEND_URL=$(gcloud run services describe agentshield-backend \
+BACKEND_URL=$(gcloud run services describe agentshield-api \
   --region=$REGION --format="value(status.url)")
 echo "Backend URL: $BACKEND_URL"
 ```
@@ -196,8 +196,8 @@ echo "Backend URL: $BACKEND_URL"
 firebase login
 firebase init hosting --project=$PROJECT_ID
 
-# Build the frontend with backend URL
-VITE_API_BASE_URL=$BACKEND_URL npm --prefix frontend run build
+# Build the frontend. Firebase rewrites /api/** to Cloud Run; do not bake a Cloud Run URL.
+VITE_API_URL=/api/v1 npm --prefix frontend run build
 
 # Deploy to Firebase Hosting
 firebase deploy --only hosting --project=$PROJECT_ID
@@ -215,7 +215,7 @@ Ensure `firebase.json` rewrites point to your Cloud Run backend:
       {
         "source": "/api/**",
         "run": {
-          "serviceId": "agentshield-backend",
+          "serviceId": "agentshield-api",
           "region": "us-central1"
         }
       },

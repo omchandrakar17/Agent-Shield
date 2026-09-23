@@ -20,8 +20,28 @@ echo "==> Pushing image"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 docker push "$IMAGE"
 
+APP_ENV="${AGENTSHIELD_ENV:-production}"
+
+if [ -n "$CLOUD_SQL_INSTANCE" ]; then
+  echo "==> Running Alembic once (Cloud Run job agentshield-migrate)"
+  gcloud run jobs deploy agentshield-migrate \
+    --image="$IMAGE" \
+    --region="$REGION" \
+    --command=python \
+    --args=-m,alembic,upgrade,head \
+    --set-secrets=AGENTSHIELD_DATABASE_URL=agentshield-database-url:latest \
+    --set-env-vars="AGENTSHIELD_ENV=${APP_ENV},AGENTSHIELD_RUN_MIGRATIONS=false" \
+    --set-cloudsql-instances="$CLOUD_SQL_INSTANCE" \
+    --max-retries=0 \
+    --task-timeout=600 \
+    --quiet
+  gcloud run jobs execute agentshield-migrate --region="$REGION" --wait
+else
+  echo "Skipping Alembic: CLOUD_SQL_INSTANCE is empty."
+fi
+
 echo "==> Deploying to Cloud Run"
-ENV_VARS="AGENTSHIELD_ENV=production,AGENTSHIELD_AUTH_MODE=local,AGENTSHIELD_SEED_USERS=false,AGENTSHIELD_USE_SECRET_MANAGER=true,AGENTSHIELD_USE_PUBSUB=true,AGENTSHIELD_USE_FIRESTORE=true,AGENTSHIELD_USE_BIGQUERY=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},AGENTSHIELD_RUN_MIGRATIONS=true"
+ENV_VARS="AGENTSHIELD_ENV=${APP_ENV},AGENTSHIELD_AUTH_MODE=local,AGENTSHIELD_SEED_USERS=false,AGENTSHIELD_USE_SECRET_MANAGER=true,AGENTSHIELD_USE_PUBSUB=true,AGENTSHIELD_USE_FIRESTORE=true,AGENTSHIELD_USE_BIGQUERY=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},AGENTSHIELD_RUN_MIGRATIONS=false,AGENTSHIELD_AGENT_PLANNER=vertex,VERTEX_GEMINI_MODEL=gemini-2.0-flash-001"
 if [ -n "$CLOUD_SQL_INSTANCE" ]; then
   ENV_VARS="${ENV_VARS},CLOUD_SQL_CONNECTION_NAME=${CLOUD_SQL_INSTANCE}"
 fi

@@ -7,6 +7,7 @@ substitutions:
   _REPOSITORY: agentshield
   _CLOUD_SQL_INSTANCE: ""
   _AUTH_MODE: local
+  _ENV: production
   _MIN_INSTANCES: "1"
   _MAX_INSTANCES: "10"
 
@@ -52,6 +53,32 @@ steps:
       - --all-tags
       - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api
 
+  - id: migrate
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [ -z "${_CLOUD_SQL_INSTANCE}" ]; then
+          echo "Skipping Alembic: _CLOUD_SQL_INSTANCE is empty."
+          echo "Set _CLOUD_SQL_INSTANCE for staging and production so migrations run once before deploy."
+          exit 0
+        fi
+        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/api:${SHORT_SHA}"
+        gcloud run jobs deploy agentshield-migrate \
+          --image="$$IMAGE" \
+          --region="${_REGION}" \
+          --command=python \
+          --args=-m,alembic,upgrade,head \
+          --set-secrets=AGENTSHIELD_DATABASE_URL=agentshield-database-url:latest \
+          --set-env-vars=AGENTSHIELD_ENV=${_ENV},AGENTSHIELD_RUN_MIGRATIONS=false \
+          --set-cloudsql-instances="${_CLOUD_SQL_INSTANCE}" \
+          --max-retries=0 \
+          --task-timeout=600 \
+          --quiet
+        gcloud run jobs execute agentshield-migrate --region="${_REGION}" --wait
+
   - id: deploy-api
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: bash
@@ -72,7 +99,7 @@ steps:
           --min-instances=${_MIN_INSTANCES}
           --max-instances=${_MAX_INSTANCES}
           --set-secrets=AGENTSHIELD_JWT_SECRET=agentshield-jwt-secret:latest,AGENTSHIELD_AGENT_API_KEY=agentshield-agent-api-key:latest,AGENTSHIELD_INTERNAL_SERVICE_KEY=agentshield-internal-service-key:latest,AGENTSHIELD_DATABASE_URL=agentshield-database-url:latest,AGENTSHIELD_CORS_ORIGINS=agentshield-cors-origins:latest
-          --set-env-vars=AGENTSHIELD_ENV=production,AGENTSHIELD_AUTH_MODE=${_AUTH_MODE},AGENTSHIELD_SEED_USERS=false,AGENTSHIELD_USE_SECRET_MANAGER=true,AGENTSHIELD_USE_PUBSUB=true,AGENTSHIELD_USE_FIRESTORE=true,AGENTSHIELD_USE_BIGQUERY=true,AGENTSHIELD_PUBSUB_TOPIC=agentshield-events,AGENTSHIELD_PUBSUB_AUDIT_TOPIC=agentshield-audit-events,AGENTSHIELD_BIGQUERY_DATASET=agentshield,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},AGENTSHIELD_RUN_MIGRATIONS=true
+          --set-env-vars=AGENTSHIELD_ENV=${_ENV},AGENTSHIELD_AUTH_MODE=${_AUTH_MODE},AGENTSHIELD_SEED_USERS=false,AGENTSHIELD_USE_SECRET_MANAGER=true,AGENTSHIELD_USE_PUBSUB=true,AGENTSHIELD_USE_FIRESTORE=true,AGENTSHIELD_USE_BIGQUERY=true,AGENTSHIELD_PUBSUB_TOPIC=agentshield-events,AGENTSHIELD_PUBSUB_AUDIT_TOPIC=agentshield-audit-events,AGENTSHIELD_BIGQUERY_DATASET=agentshield,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},AGENTSHIELD_RUN_MIGRATIONS=false,AGENTSHIELD_AGENT_PLANNER=vertex,VERTEX_GEMINI_MODEL=gemini-2.0-flash-001
         )
         if [ -n "${_CLOUD_SQL_INSTANCE}" ]; then
           DEPLOY_ARGS+=(--add-cloudsql-instances=${_CLOUD_SQL_INSTANCE})

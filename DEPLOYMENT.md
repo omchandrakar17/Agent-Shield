@@ -31,10 +31,27 @@ This runs GCP bootstrap, deploys the API to Cloud Run, publishes the console to 
 | Environment | `AGENTSHIELD_ENV` | Database | Cloud services |
 |-------------|-------------------|----------|----------------|
 | development | `development` | SQLite | Disabled (local) |
-| staging | `staging` | Cloud SQL Postgres | Firestore + Pub/Sub |
+| staging | `staging` | Cloud SQL Postgres | Secret Manager, Pub/Sub, Firestore, BigQuery |
 | production | `production` | Cloud SQL Postgres | Full stack + BigQuery |
 
-See `.env.production.example` for all production variables.
+See `.env.staging.example` and `.env.production.example`. Application containers set `AGENTSHIELD_RUN_MIGRATIONS=false`. Alembic runs once, before the Cloud Run revision, as Cloud Run job `agentshield-migrate`.
+
+Staging deploy:
+
+```bash
+export PROJECT_ID=your-staging-project-id
+export REGION=us-central1
+export AGENTSHIELD_ENV=staging
+export CLOUD_SQL_INSTANCE=your-staging-project-id:us-central1:agentshield-db
+./infra/scripts/deploy-production.sh
+```
+
+Or Cloud Build:
+
+```bash
+gcloud builds submit --config=infra/cloudbuild.yaml . \
+  --substitutions=_ENV=staging,_REGION=us-central1,_CLOUD_SQL_INSTANCE=PROJECT:us-central1:agentshield-db
+```
 
 ## Secrets (Secret Manager)
 
@@ -57,8 +74,9 @@ Set `AGENTSHIELD_USE_SECRET_MANAGER=true` on Cloud Run. Secrets load at startup 
 2. Frontend test + build
 3. Docker build (with `[gcp]` deps)
 4. Push to Artifact Registry
-5. Deploy Cloud Run `agentshield-api`
-6. Post-deploy smoke test
+5. Run Alembic once (`agentshield-migrate`) when `_CLOUD_SQL_INSTANCE` is set
+6. Deploy Cloud Run `agentshield-api` in `us-central1` with `AGENTSHIELD_RUN_MIGRATIONS=false`
+7. Post-deploy smoke test
 
 ```bash
 gcloud builds submit --config=infra/cloudbuild.yaml . \

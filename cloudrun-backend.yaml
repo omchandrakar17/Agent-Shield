@@ -46,6 +46,12 @@ spec:
               value: "true"
             - name: GOOGLE_CLOUD_PROJECT
               value: "PROJECT_ID"
+            - name: AGENTSHIELD_RUN_MIGRATIONS
+              value: "false"
+            - name: AGENTSHIELD_AGENT_PLANNER
+              value: "vertex"
+            - name: VERTEX_GEMINI_MODEL
+              value: "gemini-2.0-flash-001"
           startupProbe:
             httpGet:
               path: /healthz

@@ -29,7 +29,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
     AGENTSHIELD_ENV=production \
     AGENTSHIELD_SEED_USERS=false \
-    AGENTSHIELD_RUN_MIGRATIONS=true
+    AGENTSHIELD_RUN_MIGRATIONS=false
 
 RUN groupadd -g 10001 agentshield && \
     useradd -u 10001 -g agentshield -m -s /bin/bash agentshield && \
